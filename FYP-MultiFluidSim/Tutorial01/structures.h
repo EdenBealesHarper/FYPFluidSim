@@ -6,8 +6,10 @@ using namespace DirectX;
 // Structures
 //--------------------------------------------------------------------------------------
 
+//TODO: Pre compute wall density if kernal was fully in the wall -> Use number of points in a sphere, extrapolate to get different radii
 const float gravityConst = 9.81f;
 const float kb = 1.34f * pow(10.0f, -23.0f);
+const float speedOfSound = 1000.0f;
 
 struct ConstantBuffer
 {

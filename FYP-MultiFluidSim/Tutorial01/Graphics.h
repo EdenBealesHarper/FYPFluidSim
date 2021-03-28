@@ -36,7 +36,10 @@ using namespace std;
 #define FKEY 0x46
 
 #define NUMTEXTURE 3
-#define NUMCUBES 100
+#define NUMCUBES1 300
+#define NUMCUBES2 0
+#define NUMCUBES3 0
+#define NUMCUBES4 0
 
 class Graphics
 {
@@ -49,8 +52,11 @@ class Graphics
 		HRESULT InitWorld(int width, int height);
 		void CleanupDevice();
 		static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
-		void Render();
-		void Update();
+		void Render(vector<pair<ImVec4, string>>* debugLog);
+		void Update(double dt, vector<pair<ImVec4, string>>*debugLog);
+
+		void UpdateCamera();
+		void ReadKeyboard(float deltaT);
 
 	private:
 		HINSTANCE g_hInst = nullptr;
@@ -88,10 +94,6 @@ class Graphics
 		int g_viewWidth;
 		int g_viewHeight;
 
-		double deltaTime = 0.0f;
-		ULONGLONG prevTime = 0.0f;
-		ULONGLONG curTime = 0.0f;
-
 		float camSpeed = 5.0f / 1000.0f;
 		float camRotateSpeed = 1.0f / 1000.0f;
 		float moveLeftRight = 0.0f;
@@ -123,12 +125,9 @@ class Graphics
 
 		SCREEN_VERTEX svQuad[4];
 
-		bool doSim = false;
 		SmoothParticle* sph;
 
-		void UpdateCamera();
 		void UpdateViewMatrix();
-		void ReadKeyboard(float deltaT);
 
 		void buildFSQuad();
 

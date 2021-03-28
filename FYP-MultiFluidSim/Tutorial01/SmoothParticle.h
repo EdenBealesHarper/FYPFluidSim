@@ -21,10 +21,10 @@
 class SmoothParticle
 {
 public:
-	void CalcNavStok(vector<DrawableGameObject*> &allObjects, double deltaT, bool doSim);
+	void CalcNavStok(vector<DrawableGameObject*> &allObjects, double deltaT, vector<pair<ImVec4, string>> *debugLog);
 
 private:
-	vector<string> debugLog;
+	vector<pair<ImVec4, string>> localDebugLog;
 
 	float WPoly(float kernalSize, XMFLOAT3 rsubrj);
 	XMFLOAT3 WPress(float kernalSize, XMFLOAT3 rsubrj);
@@ -34,6 +34,6 @@ private:
 	XMFLOAT3 Pressure(float kernalSize, XMFLOAT3 rsubrj, DrawableGameObject& thisObj, DrawableGameObject& otherObj);
 	XMFLOAT3 Viscosity(float kernalSize, XMFLOAT3 rsubrj, DrawableGameObject& thisObj, DrawableGameObject& otherObj);
 
-	XMFLOAT3 WallPressure(float kernalSize, DrawableGameObject& thisObj, double deltaT);
+	XMFLOAT3 WallPressure(float kernalSize, DrawableGameObject& thisObj, double deltaT, vector<pair<ImVec4, string>>*debugLog);
 };
 

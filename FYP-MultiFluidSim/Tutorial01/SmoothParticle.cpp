@@ -1,18 +1,14 @@
 #include "SmoothParticle.h"
 
-void SmoothParticle::CalcNavStok(vector<DrawableGameObject*> &allObjects, double deltaT, bool doSim)
+void SmoothParticle::CalcNavStok(vector<DrawableGameObject*> &allObjects, double deltaT, vector<pair<ImVec4, string>>*debugLog)
 {
 	vector<DrawableGameObject*> closePoints;
 
-	if(doSim)
-	{
-		debugLog.clear();
-	}
+	localDebugLog.clear();
 
 	for (int obj = 0; obj < allObjects.size(); obj++)
 	{
 		float density = 0.0f;
-		float pressure = kb * (density - 1000.0f);
 	
 		DrawableGameObject* rObj = allObjects[obj];
 		XMFLOAT3 rPos = rObj->getPosition();
@@ -40,6 +36,8 @@ void SmoothParticle::CalcNavStok(vector<DrawableGameObject*> &allObjects, double
 			}
 		}
 
+		allObjects[obj]->setFriends(closePoints);
+
 		for (int i = 0; i < closePoints.size(); i++)
 		{
 			DrawableGameObject* otherObj = closePoints[i];
@@ -52,8 +50,16 @@ void SmoothParticle::CalcNavStok(vector<DrawableGameObject*> &allObjects, double
 			XMFLOAT3 rsubrj;
 			XMStoreFloat3(&rsubrj, XMVectorSubtract(vecRPos, vecRjPos));
 
+			//TODO: Find wall overlap and use that % to get % of pre comp wall density value
+			//TODO: Make it subtract the multiple overlap section if a particle is in the corner, or calc density from average distance overlap.
 			density += Density(rRad, otherObj->getMass(), rsubrj);
 		}
+
+		//restPress = force / area;
+
+		//float pressure = restPressure + k(Density - restDensity);
+
+		float pressure = 100.0f + speedOfSound * (density - rObj->getRefDensity());
 
 		allObjects[obj]->setDensity(density);
 		allObjects[obj]->setPressure(pressure);
@@ -63,7 +69,7 @@ void SmoothParticle::CalcNavStok(vector<DrawableGameObject*> &allObjects, double
 
 	for (int obj = 0; obj < allObjects.size(); obj++)
 	{
-		float kinVis = 1.787f;
+		float kinVis = allObjects[obj]->getKinVis();
 		XMFLOAT3 viscosity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 		XMFLOAT3 pressure = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
@@ -73,25 +79,7 @@ void SmoothParticle::CalcNavStok(vector<DrawableGameObject*> &allObjects, double
 
 		XMVECTOR vecRPos = XMLoadFloat3(&rPos);
 
-		for (int i = 0; i < allObjects.size(); i++)
-		{
-			DrawableGameObject* otherObj = allObjects[i];
-			if (allObjects[obj] == otherObj)
-			{
-				continue;
-			}
-
-			XMFLOAT3 otherPos = otherObj->getPosition();
-			XMVECTOR vecRjPos = XMLoadFloat3(&otherPos);
-
-			float dist;
-			XMStoreFloat(&dist, XMVector3Length(XMVectorSubtract(vecRPos, vecRjPos)));
-
-			if (dist < rRad)
-			{
-				closePoints.push_back(otherObj);
-			}
-		}
+		closePoints = allObjects[obj]->getFriends();
 
 		for (int i = 0; i < closePoints.size(); i++)
 		{
@@ -128,38 +116,21 @@ void SmoothParticle::CalcNavStok(vector<DrawableGameObject*> &allObjects, double
 		tempPress.y = -1.0f * pressure.y;
 		tempPress.z = -1.0f * pressure.z;
 
-		XMFLOAT3 wallPress = WallPressure(rRad, *allObjects[obj], deltaT);
+		XMFLOAT3 wallPress = WallPressure(rRad, *allObjects[obj], deltaT, debugLog);
 
 		XMFLOAT3 grav = XMFLOAT3(0.0f, -gravityConst * deltaT * allObjects[obj]->getMass(), 0.0f);
 
+		//allObjects[obj]->addForce(wallPress);
 		allObjects[obj]->addForce(tempVisco);
 		allObjects[obj]->addForce(tempPress);
-		allObjects[obj]->addForce(wallPress);
 		allObjects[obj]->addForce(grav);
-
-		if (doSim && (closePoints.size() > 0 || wallPress.x > 0 || wallPress.y > 0 || wallPress.z > 0))
-		{
-			ostringstream log;
-
-			log << "Forces on point :" << rPos.x << "," << rPos.y << "," << rPos.z << "\n Visco::" << tempVisco.x << "," << tempVisco.y << "," << tempVisco.z <<
-				"\n Press:: " << tempPress.x << "," << tempPress.y << ", " << tempPress.z << "\n Wall::" <<
-				wallPress.x << "," << wallPress.y << "," << wallPress.z << "\n Grav::" << grav.y << "\n" << "Number of close:: " << closePoints.size() << "\n";
-
-			string strLog = log.str();
-
-			debugLog.push_back(strLog);
-		}
 
 		closePoints.clear();
 	}
 
-	ImGui::Text("DeltaTime = %f", deltaT);
-
-	ImGui::Text("Log size = %i", debugLog.size());
-
-	for (int i = 0; i < debugLog.size(); i++)
+	for(int i = 0; i < localDebugLog.size(); i++)
 	{
-		ImGui::Text(debugLog[i].c_str());
+		debugLog->push_back(localDebugLog[i]);
 	}
 }
 
@@ -190,7 +161,7 @@ XMFLOAT3 SmoothParticle::WPress(float kernalSize, XMFLOAT3 rsubrj)
 
 float SmoothParticle::WVis(float kernalSize, XMFLOAT3 rsubrj)
 {
-	float scale = 45 / (XM_PI * pow(kernalSize, 6.0f));
+	float scale = 45.0f / (XM_PI * pow(kernalSize, 6.0f));
 
 	float absRSubRj = sqrt(pow(rsubrj.x, 2.0f) + pow(rsubrj.y, 2.0f) + pow(rsubrj.z, 2.0f));
 
@@ -203,7 +174,7 @@ XMFLOAT3 SmoothParticle::Pressure(float kernalSize, XMFLOAT3 rsubrj, DrawableGam
 {
 	float density = otherObj.getDensity();
 
-	float scale = otherObj.getMass() * ((thisObj.getPressure() + otherObj.getPressure()) / 2 * otherObj.getDensity());
+	float scale = otherObj.getMass() * ((thisObj.getPressure() / thisObj.getDensity()) + (otherObj.getPressure() / otherObj.getDensity()));
 	XMFLOAT3 WPressVal = WPress(kernalSize, rsubrj);
 
 	XMFLOAT3 tempPress;
@@ -214,7 +185,7 @@ XMFLOAT3 SmoothParticle::Pressure(float kernalSize, XMFLOAT3 rsubrj, DrawableGam
 	return tempPress;
 }
 
-XMFLOAT3 SmoothParticle::WallPressure(float kernalSize, DrawableGameObject& thisObj, double deltaT)
+XMFLOAT3 SmoothParticle::WallPressure(float kernalSize, DrawableGameObject& thisObj, double deltaT, vector<pair<ImVec4, string>>*debugLog)
 {
 	XMFLOAT3 pos = thisObj.getPosition();
 
@@ -225,62 +196,47 @@ XMFLOAT3 SmoothParticle::WallPressure(float kernalSize, DrawableGameObject& this
 	if (pos.x <= -15.0f + kernalSize)
 	{
 		wallNorm.x = 1.0f;
-		wallDist = pos.x - -15.0f;
+		wallDist += pos.x - -15.0f;
 	}
 	else if (pos.x >= 15.0f - kernalSize)
 	{
 		wallNorm.x = -1.0f;
-		wallDist = pos.x - 15.0f;
+		wallDist += 15.0f - pos.x;
 	}
 
-	if (pos.y <= 5.0f + kernalSize)
+	if (pos.y <= -15.0f + kernalSize)
 	{
 		wallNorm.y = 1.0f;
-		wallDist = pos.y - 5.0f;
+		wallDist += pos.y - -15.0f;
 	}
 	else if (pos.y >= 15.0f - kernalSize)
 	{
 		wallNorm.y = -1.0f;
-		wallDist = pos.y - 15.0f;
+		wallDist += 15.0f - pos.y;
 	}
 	
 	if (pos.z <= -15.0f + kernalSize)
 	{
 		wallNorm.z = 1.0f;
-		wallDist = pos.z - -15.0f;
+		wallDist += pos.z - -15.0f;
 	}
 	else if (pos.z >= 15.0f - kernalSize)
 	{
 		wallNorm.z = -1.0f;
-		wallDist = pos.z - 15.0f;
+		wallDist += 15.0f - pos.z;
 	}
-
-	wallDist = abs(wallDist);
 
 	XMFLOAT3 pressForce = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 	double distTimeSqr = kernalSize * deltaT;
 
-	//XMVECTOR wallDistMag = XMVector3Length(XMLoadFloat3(&wallDist));
-	//float wallDistMagF;
-
-	//XMStoreFloat(&wallDistMagF, wallDistMag);
-
 	float ObjMass = thisObj.getMass();
-	
-	ostringstream log;
 
-	log << "Wall Force Y = " << ObjMass << "* (((" << kernalSize << " - " << wallDist << ") * " << wallNorm.y << ") / " << distTimeSqr << ")" << "\n";
-
-	string strLog = log.str();
-
-	debugLog.push_back(strLog);
-
-	if (wallDist != 0.0f)
+	if (wallDist <= 0.5f)
 	{
-		pressForce.x = ObjMass * (((kernalSize - wallDist) * wallNorm.x) / distTimeSqr);
-		pressForce.y = ObjMass * (((kernalSize - wallDist) * wallNorm.y) / distTimeSqr);
-		pressForce.z = ObjMass * (((kernalSize - wallDist) * wallNorm.z) / distTimeSqr);
+		pressForce.x = ObjMass * (((0.5f - wallDist) * wallNorm.x) / distTimeSqr);
+		pressForce.y = ObjMass * (((0.5f - wallDist) * wallNorm.y) / distTimeSqr);
+		pressForce.z = ObjMass * (((0.5f - wallDist) * wallNorm.z) / distTimeSqr);
 	}
 
 	return pressForce;
@@ -288,7 +244,7 @@ XMFLOAT3 SmoothParticle::WallPressure(float kernalSize, DrawableGameObject& this
 
 XMFLOAT3 SmoothParticle::Viscosity(float kernalSize, XMFLOAT3 rsubrj, DrawableGameObject & thisObj, DrawableGameObject& otherObj)
 {
-	float DynVis = 1.793f * pow(10, -3);
+	float DynVis = thisObj.getDynVis();
 	float density = otherObj.getDensity();
 
 	XMFLOAT3 otherObjVelo = otherObj.getVelocity();

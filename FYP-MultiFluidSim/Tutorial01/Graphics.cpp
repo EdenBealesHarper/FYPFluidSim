@@ -275,22 +275,69 @@ HRESULT Graphics::InitDevice()
         return hr;
     }
 
-    float ypos = 10.0f;
-    float zpos = 10.0f;
+    srand(time(0));
 
-    for (int i = 0; i < NUMCUBES; i++)
+    for (int i = 0; i < NUMCUBES1; i++)
     {
-        if (zpos <= -10.0f)
-        {
-            zpos = 10.0f;
-            ypos -= 0.5f;
-        }
+        float xpos = (rand() % 28) - 14;
+        float zpos = (rand() % 28) - 14;
+        float ypos = (rand() % 12) - 5;
+
         DrawableGameObject* dgo = new DrawableGameObject();
         dgo->initMesh(g_pd3dDevice, g_pImmediateContext);
-        dgo->setPosition(XMFLOAT3(0.0f, ypos, zpos));
+        dgo->setPosition(XMFLOAT3(xpos, ypos, zpos));
         g_GameObjectArr.push_back(dgo);
+    }
 
-        zpos -= 0.5f;
+    for (int i = 0; i < NUMCUBES2; i++)
+    {
+        float xpos = (rand() % 28) - 14;
+        float zpos = (rand() % 28) - 14;
+        float ypos = (rand() % 12) - 5;
+
+        DrawableGameObject* dgo = new DrawableGameObject();
+        dgo->initMesh(g_pd3dDevice, g_pImmediateContext);
+        dgo->setPosition(XMFLOAT3(xpos, ypos, zpos));
+
+        dgo->setDynVis(0.01f);
+        dgo->setKinVis(0.0002f);
+        dgo->setMass(0.1f);
+
+        g_GameObjectArr.push_back(dgo);
+    }
+
+    for (int i = 0; i < NUMCUBES3; i++)
+    {
+        float xpos = (rand() % 28) - 14;
+        float zpos = (rand() % 28) - 14;
+        float ypos = (rand() % 12) - 5;
+
+        DrawableGameObject* dgo = new DrawableGameObject();
+        dgo->initMesh(g_pd3dDevice, g_pImmediateContext);
+        dgo->setPosition(XMFLOAT3(xpos, ypos, zpos));
+
+        dgo->setDynVis(0.05f);
+        dgo->setKinVis(0.002f);
+        dgo->setMass(0.02f);
+
+        g_GameObjectArr.push_back(dgo);
+    }
+
+    for (int i = 0; i < NUMCUBES4; i++)
+    {
+        float xpos = (rand() % 28) - 14;
+        float zpos = (rand() % 28) - 14;
+        float ypos = (rand() % 12) - 5;
+
+        DrawableGameObject* dgo = new DrawableGameObject();
+        dgo->initMesh(g_pd3dDevice, g_pImmediateContext);
+        dgo->setPosition(XMFLOAT3(xpos, ypos, zpos));
+
+        dgo->setDynVis(0.06f);
+        dgo->setKinVis(0.0001f);
+        dgo->setMass(0.2f);
+
+        g_GameObjectArr.push_back(dgo);
     }
 
     IMGUI_CHECKVERSION();
@@ -473,77 +520,40 @@ LRESULT CALLBACK Graphics::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 //--------------------------------------------------------------------------------------
 // Update Variables
 //--------------------------------------------------------------------------------------
-void Graphics::Update()
+void Graphics::Update(double dt, vector<pair<ImVec4, string>>* debugLog)
 {
-    // Update our time
-    float totalTime = 0.0f;
-    if (g_driverType == D3D_DRIVER_TYPE_REFERENCE)
-    {
-        totalTime += (float)XM_PI * 0.0125f;
-    }
-    else
-    {
-        if (curTime == 0.0f)
-        {
-            curTime = GetTickCount64();
-        }
-
-        prevTime = curTime;
-        curTime = GetTickCount64();
-
-        deltaTime = (curTime - prevTime) / 1000.0f;
-
-        /*static ULONGLONG timeStart = 0;
-        ULONGLONG timeCur = GetTickCount64();
-        if (timeStart == 0)
-            timeStart = timeCur;
-        totalTime = (timeCur - timeStart) / 1000.0f;
-
-        deltaTime = (timeCur - prevTime)/1000.0f;
-        prevTime = timeCur;*/
-    }
-
-    ImGui_ImplDX11_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
-
-    ImGui::Begin("Info");
-
-    float fps = 1.0f / deltaTime;
-
-    ImGui::Text("FPS: %f", fps);
-
-    ImGui::Text("Eye Pos = %f, %f, %f", g_EyePosition.x, g_EyePosition.y, g_EyePosition.z);
-    ImGui::Text("Eye Looking At = %f, %f, %f", g_At.x, g_At.y, g_At.z);
-
-
-    ImGui::Checkbox("Simulate?", &doSim);
-    for (int i = 0; i < NUMCUBES; i++)
-    {
-        g_GameObjectArr[i]->setStatic(!doSim);
-    }
-
-    sph->CalcNavStok(g_GameObjectArr, 1.0 / 60.0, doSim);
-
-    doSim = true;
+    sph->CalcNavStok(g_GameObjectArr, dt, debugLog);
     
     for (int i = 0; i < g_GameObjectArr.size(); i++)
     {
-        g_GameObjectArr[i]->update(deltaTime);
+        g_GameObjectArr[i]->update(dt, debugLog);
     }
-
-    ReadKeyboard(deltaTime);
-
-    UpdateCamera();
 }
 
 
 //--------------------------------------------------------------------------------------
 // Render a frame
 //--------------------------------------------------------------------------------------
-void Graphics::Render()
+void Graphics::Render(vector<pair<ImVec4, string>>* debugLog)
 {
+    ImGui::Text("Eye Pos = %f, %f, %f", g_EyePosition.x, g_EyePosition.y, g_EyePosition.z);
+    ImGui::Text("Eye Looking At = %f, %f, %f", g_At.x, g_At.y, g_At.z);
+
+
     RenderDefault();
+
+    ImGui::End();
+    
+    ImGui::Begin("Debug Log");
+
+    ImGui::Text("Log size = %i", debugLog->size());
+
+    for (int i = 0; i < debugLog->size(); i++)
+    {
+        ImVec4 colour = debugLog->at(i).first;
+        string item = debugLog->at(i).second;
+        ImGui::TextColored(colour, item.c_str());
+    }
 
     ImGui::End();
 

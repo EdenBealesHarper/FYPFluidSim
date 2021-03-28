@@ -26,7 +26,7 @@ bool Collision::isColliding(DrawableGameObject* a, DrawableGameObject* b, float 
 
 void Collision::applyCollision(DrawableGameObject* a, DrawableGameObject* b, XMVECTOR directionVector, float deltaT)
 {
-	float distance = 0.0f;
+	/*float distance = 0.0f;
 	XMStoreFloat(&distance, XMVector3Length(directionVector));
 
 	float overlapPerc = ((distance - (a->getRadius() + b->getRadius())) / distance);
@@ -45,5 +45,5 @@ void Collision::applyCollision(DrawableGameObject* a, DrawableGameObject* b, XMV
 	XMStoreFloat3(&appliedForceBFloat, outputForceA);
 
 	a->addForce(appliedForceAFloat);
-	b->addForce(appliedForceBFloat);
+	b->addForce(appliedForceBFloat);*/
 }

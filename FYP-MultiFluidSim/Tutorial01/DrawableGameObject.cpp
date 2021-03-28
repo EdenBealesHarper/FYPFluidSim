@@ -145,21 +145,11 @@ void DrawableGameObject::setPosition(XMFLOAT3 position)
 	m_position = position;
 }
 
-void DrawableGameObject::update(float t)
+void DrawableGameObject::update(float t, vector<pair<ImVec4, string>>* debugLog)
 {
 	if (!isStatic)
 	{
-		//applyGrav(t);
-		//checkLimits(t);
-		calcForces(t);
-
-		XMFLOAT3 pos = getPosition();
-		pos.x += m_velocity.x;
-		pos.y += m_velocity.y;
-		pos.z += m_velocity.z;
-		setPosition(pos);
-
-		ImGui::Text("Cube Pos: %f, %f, %f", m_position.x, m_position.y, m_position.z);
+		calcForces(t, debugLog);
 	}
 
 	forces.clear();
@@ -175,7 +165,8 @@ void DrawableGameObject::update(float t)
 
 	XMMATRIX mSpin = XMMatrixRotationRollPitchYaw(m_rotation.x, m_rotation.y, m_rotation.z);
 	XMMATRIX mTranslate = XMMatrixTranslation(m_position.x, m_position.y, m_position.z);
-	XMMATRIX world = mTranslate * mSpin;
+	XMMATRIX mScale = XMMatrixScaling(0.5f, 0.5f, 0.5f);
+	XMMATRIX world = mTranslate * mSpin * mScale;
 	XMStoreFloat4x4(&m_World, world);
 }
 
@@ -369,24 +360,24 @@ void DrawableGameObject::checkLimits(double deltaT)
 
 	if (pos.z < -15.0f || pos.z > 15.0f)
 	{
-		m_velocity.z = -m_velocity.z * 0.9f;
+		m_Velocity.z = -m_Velocity.z * 0.9f;
 	}
 
 	if (pos.x < -15.0f || pos.x > 15.0f)
 	{
-		m_velocity.x = -m_velocity.x * 0.9f;
+		m_Velocity.x = -m_Velocity.x * 0.9f;
 	}
 	
 	if (pos.y < 0.0f)
 	{
-		float force = (m_mass * -m_velocity.y);
+		float force = (m_mass * -m_Velocity.y);
 
 		newPos.y = 0.0f;
 		totalForce.y += force;
 	}
 	else if (pos.y > 15.0f)
 	{
-		float force = (m_mass * -m_velocity.y);
+		float force = (m_mass * -m_Velocity.y);
 
 		newPos.y = 15.0f;
 		totalForce.y += force;
@@ -396,26 +387,180 @@ void DrawableGameObject::checkLimits(double deltaT)
 	addForce(totalForce);
 }
 
-void DrawableGameObject::calcForces(double deltaT)
+void DrawableGameObject::calcForces(double deltaT, vector<pair<ImVec4, string>>*debugLog)
 {
+	ImVec4 colour = ImVec4(1.0f, 1.0f, 1.0f, 0.5f);
+	m_Acceleration = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
 	XMFLOAT3 totalForce = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	XMVECTOR forceVec = XMLoadFloat3(&totalForce);
+	float forceMag;
+	XMStoreFloat(&forceMag, XMVector3Length(forceVec));
 
 	for (int i = 0; i < forces.size(); i++)
 	{
-		totalForce.x += forces[i].x;
-		totalForce.y += forces[i].y;
-		totalForce.z += forces[i].z;
+		forceVec = XMLoadFloat3(&forces[i]);
+		XMStoreFloat(&forceMag, XMVector3Length(forceVec));
+
+		if (forceMag > 0.0000000001f)
+		{
+			totalForce.x += forces[i].x;
+			totalForce.y += forces[i].y;
+			totalForce.z += forces[i].z;
+		}
 	}
 
-	m_Acceleration.x = totalForce.x / m_mass;
-	m_Acceleration.y = totalForce.y / m_mass;
-	m_Acceleration.z = totalForce.z / m_mass;
+	XMFLOAT3 wallNorm = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	float wallDist = 100000000000000.0f;
+	XMFLOAT3 tempPos = m_position;
 
-	m_velocity.x += m_Acceleration.x * deltaT;
-	m_velocity.y += m_Acceleration.y * deltaT;
-	m_velocity.z += m_Acceleration.z * deltaT;
+	if (m_position.x < -15.0f + m_wallradius)
+	{
+		wallNorm.x = 1.0f;
+		wallDist = m_position.x - -15.0f;
 
-	m_velocity.x *= 0.9f;
-	m_velocity.y *= 0.9f;
-	m_velocity.z *= 0.9f;
+		tempPos.x = -15.0f + m_wallradius;
+	}
+	else if (m_position.x > 15.0f - m_wallradius)
+	{
+		wallNorm.x = -1.0f;
+		wallDist = 15.0f - m_position.x;
+
+		tempPos.x = 15.0f - m_wallradius;
+	}
+
+	if (m_position.y < -15.0f + m_wallradius)
+	{
+		wallNorm.y = 1.0f;
+		wallDist = m_position.y - -15.0f;
+
+		tempPos.y = -15.0f + m_wallradius;
+	}
+	else if (m_position.y > 15.0f - m_wallradius)
+	{
+		wallNorm.y = -1.0f;
+		wallDist = 15.0f - m_position.y;
+
+		tempPos.y = 15.0f - m_wallradius;
+	}
+
+	if (m_position.z < -15.0f + m_wallradius)
+	{
+		wallNorm.z = 1.0f;
+		wallDist = m_position.z - -15.0f;
+
+		tempPos.z = -15.0f + m_wallradius;
+	}
+	else if (m_position.z > 15.0f - m_wallradius)
+	{
+		wallNorm.z = -1.0f;
+		wallDist = 15.0f - m_position.z;
+
+		tempPos.z = 15.0f - m_wallradius;
+	}
+
+	//TODO:: Fix this -> What portion of velo is opposite to wall normal, what portion of accel is opposite to wall normal (get this from total force)
+	//-= velo portion from velocity
+	//-= accel portion from acceleration
+	//Move particle by wall normal + overlap distance (Set pos)
+	//Apply forces
+
+	//If total force < certain amount don't do accel changes, if velo is < value don't change velo, if wall dist < value don't move particle
+
+	XMFLOAT3 tempAcc = XMFLOAT3(0.0f,0.0f,0.0f);
+	XMFLOAT3 tempVel = XMFLOAT3(0.0f,0.0f,0.0f);
+	
+	if (wallDist <= m_wallradius)
+	{
+		tempAcc.x = totalForce.x / m_mass;
+		tempAcc.y = totalForce.y / m_mass;
+		tempAcc.z = totalForce.z / m_mass;
+
+		tempVel.x = m_Velocity.x + (m_Acceleration.x * deltaT);
+		tempVel.y = m_Velocity.y + (m_Acceleration.y * deltaT);
+		tempVel.z = m_Velocity.z + (m_Acceleration.z * deltaT);
+
+		if (m_Velocity.x == INFINITY || m_Velocity.y == INFINITY || m_Velocity.z == INFINITY)
+		{
+			m_Velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		}
+
+		if (abs(m_Velocity.x) > 0.001f || abs(m_Velocity.y) > 0.001f || abs(m_Velocity.z) > 0.001f)
+		{
+			m_Velocity.x -= tempVel.x * wallNorm.x;
+			m_Velocity.y -= tempVel.y * wallNorm.y;
+			m_Velocity.z -= tempVel.z * wallNorm.z;
+			colour.x = 1.0f;
+		}
+
+		if (abs(totalForce.x) > 0.001f || abs(totalForce.y) > 0.001f || abs(totalForce.z > 0.001f))
+		{
+			m_Acceleration.x -= tempAcc.x * wallNorm.x;
+			m_Acceleration.y -= tempAcc.y * wallNorm.y;
+			m_Acceleration.z -= tempAcc.z * wallNorm.z;
+			colour.y = 1.0f;
+		}
+
+		if (wallDist < m_wallradius)
+		{
+			m_position = tempPos;
+			colour.z = 1.0f;
+		}
+
+		colour.w = 1.0f;
+	}
+
+	m_Acceleration.x += totalForce.x / m_mass;
+	m_Acceleration.y += totalForce.y / m_mass;
+	m_Acceleration.z += totalForce.z / m_mass;
+
+	m_Velocity.x += m_Acceleration.x * deltaT;
+	m_Velocity.y += m_Acceleration.y * deltaT;
+	m_Velocity.z += m_Acceleration.z * deltaT;
+
+	m_position.x += m_Velocity.x;
+	m_position.y += m_Velocity.y;
+	m_position.z += m_Velocity.z;
+
+	bool outside = false;
+
+	if (m_position.x == INFINITY)
+	{
+		outside = true;
+	}
+
+	if (m_position.y == INFINITY)
+	{
+		outside = true;
+	}
+
+	if (m_position.z == INFINITY)
+	{
+		outside = true;
+	}
+
+	if (outside)
+	{
+		colour = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
+	}
+
+	ostringstream log;
+
+	log << "Cube at point :" << m_position.x << "," << m_position.y << "," << m_position.z <<
+		"\n Acceleration::" << m_Acceleration.x << "," << m_Acceleration.y << "," << m_Acceleration.z <<
+		"\n Velocity:: " << m_Velocity.x << "," << m_Velocity.y << ", " << m_Velocity.z <<
+		"\n Total Force:: " << totalForce.x << "," << totalForce.y << ", " << totalForce.z << "\n\n";
+
+	std::string strLog = log.str();
+
+	pair<ImVec4, string> temp;
+
+	temp = make_pair(colour, strLog);
+
+	debugLog->push_back(temp);
+
+	/*m_Velocity.x *= 0.9f;
+	m_Velocity.y *= 0.9f;
+	m_Velocity.z *= 0.9f;*/
 }
