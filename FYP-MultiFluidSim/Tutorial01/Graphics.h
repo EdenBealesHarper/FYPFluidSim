@@ -36,10 +36,6 @@ using namespace std;
 #define FKEY 0x46
 
 #define NUMTEXTURE 3
-#define NUMCUBES1 300
-#define NUMCUBES2 0
-#define NUMCUBES3 0
-#define NUMCUBES4 0
 
 class Graphics
 {

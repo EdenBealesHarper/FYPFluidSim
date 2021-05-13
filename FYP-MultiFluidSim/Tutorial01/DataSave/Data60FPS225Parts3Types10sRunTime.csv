@@ -1,0 +1,18 @@
+Total Run Time,7.781,Early Exit, true
+Number of Particles of Type 1,75
+Number of Particles of Type 2,75
+Number of Particles of Type 3,75
+Number of Particles of Type 4,0
+Number of Updates,Frame Time,TotalTime,
+1,0.031,0.031,
+3,0.047,0.078,
+5,0.078,0.156,
+8,0.141,0.297,
+13,0.203,0.5,
+18,0.312,0.812,
+29,0.485,1.297,
+41,0.672,1.969,
+55,0.922,2.891,
+73,1.218,4.109,
+96,1.594,5.703,
+-1,2.078,7.781,

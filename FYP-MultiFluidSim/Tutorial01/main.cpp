@@ -38,10 +38,11 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     int totalFrames = 0;
 
     double t = 0.0;
-    double dt = 1.0 / 10.0;
+    double dt = 1.0f / FPS;
 
     double currentTime = GetTickCount64() / 1000.0;
     double accumulator = 0.0;
+    double startTime = currentTime;
 
     vector<pair<ImVec4, string>> debugLog;
     
@@ -53,6 +54,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
     vector<double> frameTimeTracker;
     vector<int> numUpdatesTracker;
+    bool earlyBreak = false;
 
     // Main message loop
     MSG msg = { 0 };
@@ -129,6 +131,14 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
                 int numUpdates = 0;
 
+                if (accumulator > 2.0)
+                {
+                    earlyBreak = true;
+                    totalFrames++;
+                    numUpdatesTracker.push_back(-1);
+                    break;
+                }
+
                 while (accumulator >= dt)
                 {
                     debugLog.clear();
@@ -170,6 +180,11 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
             Renderer->Render(&debugLog);
             totalFrames++;
         }
+
+        if (currentTime - startTime > runTime) //Auto stop after X seconds of data collection
+        {
+            break;
+        }
     }
 
     Renderer->CleanupDevice();
@@ -179,11 +194,22 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         std::time_t t = std::time(nullptr);
         std::tm* tm = std::localtime(&t);
 
+        int numTypes = 1;
+
+        if (NUMCUBES2 != 0)
+            numTypes++;
+        if (NUMCUBES3 != 0)
+            numTypes++;
+        if(NUMCUBES4 != 0)
+            numTypes++;
+        
         std::ofstream file;
         std::ostringstream fileName;
-        fileName << "DataSave/Data" << std::put_time(tm, "%d-%m-%Y--%H-%M-%S") << ".csv";
-
+        fileName << "DataSave/DataKernalSize1" << FPS << "FPS" << NUMCUBES1 + NUMCUBES2 + NUMCUBES3 + NUMCUBES4 << "Parts" << numTypes << "Types" << runTime << "sRunTime" << ".csv";
+        
         file.open(fileName.str());
+
+        file << "Total Run Time," << currentTime - startTime << ",Early Exit, " << std::boolalpha << earlyBreak << std::noboolalpha << "\n";
 
         file << "Number of Particles of Type 1," << NUMCUBES1 << "\n";
         file << "Number of Particles of Type 2," << NUMCUBES2 << "\n";

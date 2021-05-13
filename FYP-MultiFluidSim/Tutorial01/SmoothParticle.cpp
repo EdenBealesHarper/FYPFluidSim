@@ -30,7 +30,7 @@ void SmoothParticle::CalcNavStok(vector<DrawableGameObject*> &allObjects, double
 			float dist;
 			XMStoreFloat(&dist, XMVector3Length(XMVectorSubtract(vecRPos, vecRjPos)));
 
-			if (dist < rRad)
+			if (dist < rRad && dist != 0.0f)
 			{
 				closePoints.push_back(otherObj);
 			}
@@ -60,6 +60,8 @@ void SmoothParticle::CalcNavStok(vector<DrawableGameObject*> &allObjects, double
 		//float pressure = restPressure + k(Density - restDensity);
 
 		float pressure = 100.0f + speedOfSound * (density - rObj->getRefDensity());
+
+		density += WallDensity(rRad, *rObj);
 
 		allObjects[obj]->setDensity(density);
 		allObjects[obj]->setPressure(pressure);
@@ -275,4 +277,73 @@ float SmoothParticle::Density(float kernalSize, float otherMass, XMFLOAT3 rsubrj
 	float density = otherMass * Wpoly;
 
 	return density;
+}
+
+float SmoothParticle::WallDensity(float kernalSize, DrawableGameObject& thisObj)
+{
+	XMFLOAT3 pos = thisObj.getPosition();
+
+	XMFLOAT3 wallNorm = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	float wallDistX = 0.0f;
+	float wallDistY = 0.0f;
+	float wallDistZ = 0.0f;
+
+
+	if (pos.x <= -15.0f + kernalSize)
+	{
+		wallNorm.x = 1.0f;
+		wallDistX += pos.x - -15.0f;
+	}
+	else if (pos.x >= 15.0f - kernalSize)
+	{
+		wallNorm.x = -1.0f;
+		wallDistX += 15.0f - pos.x;
+	}
+
+	if (pos.y <= -15.0f + kernalSize)
+	{
+		wallNorm.y = 1.0f;
+		wallDistY += pos.y - -15.0f;
+	}
+	else if (pos.y >= 15.0f - kernalSize)
+	{
+		wallNorm.y = -1.0f;
+		wallDistY += 15.0f - pos.y;
+	}
+
+	if (pos.z <= -15.0f + kernalSize)
+	{
+		wallNorm.z = 1.0f;
+		wallDistZ += pos.z - -15.0f;
+	}
+	else if (pos.z >= 15.0f - kernalSize)
+	{
+		wallNorm.z = -1.0f;
+		wallDistZ += 15.0f - pos.z;
+	}
+
+	float outputDensity = 0.0f;
+
+	if (wallDistX > 0)
+	{
+		float overlap = wallDistX / kernalSize;
+
+		outputDensity += glassDensity * overlap;
+	}
+
+	if (wallDistY > 0)
+	{
+		float overlap = wallDistY / kernalSize;
+
+		outputDensity += glassDensity * overlap;
+	}
+
+	if (wallDistZ > 0)
+	{
+		float overlap = wallDistZ / kernalSize;
+
+		outputDensity += glassDensity * overlap;
+	}
+
+	return outputDensity;
 }

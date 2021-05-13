@@ -35,5 +35,6 @@ private:
 	XMFLOAT3 Viscosity(float kernalSize, XMFLOAT3 rsubrj, DrawableGameObject& thisObj, DrawableGameObject& otherObj);
 
 	XMFLOAT3 WallPressure(float kernalSize, DrawableGameObject& thisObj, double deltaT, vector<pair<ImVec4, string>>*debugLog);
+	float WallDensity(float kernalSize, DrawableGameObject& thisObj);
 };
 

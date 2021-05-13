@@ -11,6 +11,15 @@ const float gravityConst = 9.81f;
 const float kb = 1.34f * pow(10.0f, -23.0f);
 const float speedOfSound = 1000.0f;
 
+const float glassDensity = 25.0f;
+
+const float FPS = 30.0f;
+const int NUMCUBES1 = 300;
+const int NUMCUBES2 = 0;
+const int NUMCUBES3 = 0;
+const int NUMCUBES4 = 0;
+const double runTime = 10.0;
+
 struct ConstantBuffer
 {
 	XMMATRIX mWorld;

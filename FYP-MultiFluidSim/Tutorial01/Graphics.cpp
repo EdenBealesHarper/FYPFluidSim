@@ -286,6 +286,9 @@ HRESULT Graphics::InitDevice()
         DrawableGameObject* dgo = new DrawableGameObject();
         dgo->initMesh(g_pd3dDevice, g_pImmediateContext);
         dgo->setPosition(XMFLOAT3(xpos, ypos, zpos));
+
+        dgo->setRadius(1.0f);
+
         g_GameObjectArr.push_back(dgo);
     }
 
