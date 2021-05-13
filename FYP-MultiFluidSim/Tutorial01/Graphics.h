@@ -19,6 +19,7 @@ using namespace std;
 #include "structures.h"
 #include "Collision.h"
 #include "SmoothParticle.h"
+#include <time.h>
 
 #include <vector>
 
